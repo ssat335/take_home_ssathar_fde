@@ -60,3 +60,81 @@ first, uncontroversial) and a further 43 rows are near-duplicates (same
 `invoice_id`, conflicting `status`/`amount`) resolved by this rule, leaving
 5,000 clean rows. Recognized revenue under this rule: $120,145,168.20;
 refunds: -$8,923,203.77; net: $111,221,964.43.
+
+---
+
+# Assumptions — NL → DuckDB Query Agent
+
+Defaults picked by Claude per user instruction (2026-10-10): "assume what
+is best" for the open questions in `spec/query_agent_spec.md`, flagged here
+for later review rather than confirmed. User has explicitly accepted that
+the two account-grain questions (avg MRR/account, churn rate) may come out
+wrong in this first version — not blocking implementation on getting those
+exactly right.
+
+## 4. Account snapshot rule (avg MRR/account, churn rate)
+
+**Assumed default (not yet confirmed):** use each account's *most recent*
+invoice (`MAX(invoice_date_parsed)` per `account_id`) as that account's
+current snapshot for `plan_clean`, `region`, `mrr_usd`, `churned_clean`.
+
+**Why:** simplest well-defined rule that avoids double-counting an account
+once per invoice; "most recent state" is the most intuitive reading of
+"per account" when the docs don't say otherwise.
+
+**Affects:** query SQL for "which region has the highest average MRR per
+account" and "churn rate among Enterprise vs. Starter" in the agent's
+system prompt / generated SQL. **Known risk, accepted by user:** this is
+one of the two question types explicitly flagged as possibly-wrong in the
+first version — a snapshot can misrepresent an account that changed plan
+or region over time, or double-counts nothing but may pick a stale/odd
+invoice if `invoice_date_parsed` has anomalies (see cleaning assumptions
+§1 — some dates are anomaly-flagged, not excluded).
+
+## 5. CSAT flag rule (top-5 accounts question)
+
+**Assumed default (not yet confirmed):** flag an account if **any** of its
+invoices has `csat_score <= 2` (`MIN(csat_score) <= 2` across the account's
+invoices), not just its most recent.
+
+**Why:** more conservative and more visible to a stakeholder — a past bad
+CSAT score is still worth surfacing on a revenue leaderboard, and this
+avoids re-deriving a second snapshot rule just for CSAT.
+
+**Affects:** the CSAT-flag column on the "top 5 accounts by revenue" query.
+
+**Bug caught during testing:** the first version of `query_tool.py`'s
+docstring only had the general "collapse to one row per account" guidance,
+with no CSAT-specific rule. The agent reasonably inferred it should use
+each account's *latest* CSAT (the same pattern as the MRR/churn snapshot),
+which contradicts this assumption. Fixed by adding an explicit CSAT rule
+to the tool docstring ("flag if ANY invoice has csat_score <= 2, i.e.
+MIN(csat_score) <= 2 — not just the latest"); confirmed fixed by rerunning
+the question and checking the generated SQL uses `MIN(csat_score)` grouped
+by account across all invoices, not a latest-invoice snapshot.
+
+## 6. SQL surface exposed to the agent
+
+**Assumed default (not yet confirmed):** let the agent generate any
+read-only `SELECT`/`WITH` query against the full `invoices_clean` table —
+no column allow-list — gated only by the safety validation in
+`query_invoices` (single statement, no DDL/DML keywords, row cap).
+
+**Why:** this is meant to be a general NL-query tool, not just an answer
+machine for the six seed questions; restricting columns would block
+reasonable follow-up questions the agent should be able to handle, and the
+real risk (destructive SQL) is already closed off by the statement-type
+validation, not by column restriction.
+
+**Affects:** `tools/query_tool.py` validation logic — permissive on
+columns/aggregations, strict on statement type.
+
+## 7. DuckDB file location
+
+**Assumed default (not yet confirmed):** persist the DuckDB file at
+`data/cloudnova.duckdb`, inside the already-gitignored `data/` folder.
+
+**Why:** consistent with the clean/rejects CSVs already living there,
+untracked by git; no reason to introduce a new location for derived data.
+
+**Affects:** `load_duckdb.py` / tool init path.
