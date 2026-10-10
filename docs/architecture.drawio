@@ -1,0 +1,114 @@
+<mxfile host="app.diagrams.net" agent="Claude Code">
+  <diagram name="Architecture" id="cloudnova-architecture">
+    <mxGraphModel dx="1359" dy="1519" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="700" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;fontSize=20;fontStyle=1;align=left;verticalAlign=middle;" value="CloudNova Invoice Analytics — Architecture" vertex="1">
+          <mxGeometry height="30" width="700" x="20" y="-30" as="geometry" />
+        </mxCell>
+        <mxCell id="g1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;verticalAlign=top;align=left;fontSize=13;fontStyle=1;spacingLeft=14;spacingTop=10;" value="OFFLINE: CLEAN &amp; LOAD" vertex="1">
+          <mxGeometry height="280" width="680" x="20" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="g2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;verticalAlign=top;align=left;fontSize=13;fontStyle=1;spacingLeft=14;spacingTop=10;" value="RUNTIME: NL QUERY AGENT (per question)" vertex="1">
+          <mxGeometry height="340" width="600" x="720" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="g3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;verticalAlign=top;align=left;fontSize=13;fontStyle=1;spacingLeft=14;spacingTop=10;" value="EVAL HARNESS (golden-set regression check)" vertex="1">
+          <mxGeometry height="140" width="680" x="20" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="a1" parent="1" style="shape=document;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="Raw invoices&lt;br&gt;data/cloudnova_invoices.csv&lt;br&gt;(5,125 rows)" vertex="1">
+          <mxGeometry height="60" width="160" x="50" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="a2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="clean_invoices.py&lt;br&gt;dedup, normalize categories,&lt;br&gt;FX→USD, parse dates, MRR" vertex="1">
+          <mxGeometry height="60" width="170" x="270" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="a3" parent="1" style="shape=document;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="Clean CSV&lt;br&gt;cloudnova_invoices_clean.csv&lt;br&gt;(5,000 rows)" vertex="1">
+          <mxGeometry height="50" width="180" x="500" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="a4" parent="1" style="shape=document;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="Rejects CSV&lt;br&gt;(43 rows, audited)" vertex="1">
+          <mxGeometry height="50" width="180" x="500" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="b1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="load_duckdb.py&lt;br&gt;rebuild when CSV is newer&lt;br&gt;than the .duckdb file" vertex="1">
+          <mxGeometry height="60" width="180" x="500" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="c1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="tools/query_tool.py&lt;br&gt;@tool query_invoices(sql)&lt;br&gt;validates read-only SQL;&lt;br&gt;schema + business rules in docstring" vertex="1">
+          <mxGeometry height="80" width="240" x="740" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" value="agent.py&lt;br&gt;Strands Agent + BedrockModel&lt;br&gt;us.anthropic.claude-sonnet-4-5&lt;br&gt;(model/region/temp from .env)" vertex="1">
+          <mxGeometry height="80" width="240" x="1040" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="b2" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;" value="DuckDB&lt;br&gt;invoices_clean table&lt;br&gt;data/cloudnova.duckdb" vertex="1">
+          <mxGeometry height="90" width="200" x="740" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="ask.py&lt;br&gt;CLI entry point" vertex="1">
+          <mxGeometry height="60" width="180" x="1040" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="c4" parent="1" style="shape=actor;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" value="Stakeholder" vertex="1">
+          <mxGeometry height="60" width="40" x="1280" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" parent="1" style="shape=document;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="eval/golden_set.json&lt;br&gt;10 Q&amp;A + ground-truth SQL" vertex="1">
+          <mxGeometry height="50" width="190" x="40" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="eval/run_eval.py" vertex="1">
+          <mxGeometry height="50" width="190" x="270" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" parent="1" style="shape=document;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="eval/results/*.json&lt;br&gt;(10/10 pass, latest run)" vertex="1">
+          <mxGeometry height="50" width="180" x="500" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="note1" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;fillColor=#fff2cc;strokeColor=#d6b656;align=left;spacingLeft=6;" value="assumptions/ASSUMPTIONS.md&lt;br&gt;&lt;br&gt;Documented judgment calls:&lt;br&gt;• ambiguous dates → MM-DD-YYYY&lt;br&gt;• currency column wins over suffix&lt;br&gt;• near-dup invoice tie-break&lt;br&gt;• account-grain snapshot rule&lt;br&gt;• CSAT = MIN() across invoices&lt;br&gt;• account_id ≠ account_name bug fix" vertex="1">
+          <mxGeometry height="160" width="280" x="800" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="ed1" edge="1" parent="1" source="a1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="a2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ed2" edge="1" parent="1" source="a2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="a3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ed3" edge="1" parent="1" source="a2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="a4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ed4" edge="1" parent="1" source="a3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="b1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ed5" edge="1" parent="1" source="b1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" target="b2" value="CREATE TABLE AS SELECT * FROM clean.csv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ed6" edge="1" parent="1" source="c2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" target="c1" value="tool call (sql)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ed7" edge="1" parent="1" source="c1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;exitX=0.25;exitY=0;entryX=0.25;entryY=0;" target="c2" value="tool result (rows, JSON)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ed8" edge="1" parent="1" source="c1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;startArrow=block;startFill=1;" target="b2" value="SQL ⇔ result rows">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ed9" edge="1" parent="1" source="c2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;" target="c3" value="final answer + SQL used">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ed10" edge="1" parent="1" source="c3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;exitX=0.5;exitY=1;entryX=0.5;entryY=1;" target="c2" value="question">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ed11" edge="1" parent="1" source="c3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;startArrow=block;startFill=1;" target="c4" value="python ask.py &quot;question&quot;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ed12" edge="1" parent="1" source="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="e2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ed13" edge="1" parent="1" source="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" target="e3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ed14" edge="1" parent="1" source="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;fontSize=10;" target="c2" value="runs each question through the live agent">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="365" y="600" />
+              <mxPoint x="1160" y="600" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edn1" edge="1" parent="1" source="note1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;endArrow=none;startArrow=none;" target="c1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

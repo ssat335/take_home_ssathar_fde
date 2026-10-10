@@ -15,6 +15,19 @@ This project does two things:
    our total recognized revenue for paid invoices in 2024?" — and get a
    real answer, with the exact SQL that produced it, from the command line.
 
+## Architecture
+
+![Architecture diagram](docs/architecture.png)
+
+Offline, `clean_invoices.py` turns the raw export into a trustworthy table
+and loads it into DuckDB. At query time, a Strands agent (Bedrock Claude)
+turns a plain-English question into SQL against that table via a single
+validated tool, and `ask.py` is the command-line front end to it. A
+golden-set eval harness runs the same six-plus-four questions through the
+live agent on demand to catch regressions. The source diagram
+(`docs/architecture.drawio`) can be opened and edited directly in
+[draw.io](https://app.diagrams.net).
+
 ## Why it's built this way
 
 Dirty invoice data has a trap: you can write code that runs without
