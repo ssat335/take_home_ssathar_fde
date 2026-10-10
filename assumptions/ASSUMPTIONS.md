@@ -138,3 +138,35 @@ columns/aggregations, strict on statement type.
 untracked by git; no reason to introduce a new location for derived data.
 
 **Affects:** `load_duckdb.py` / tool init path.
+
+## 8. `account_name` is not a reliable grouping key — only `account_id` is
+
+**Decision:** discovered while building ground-truth answers for
+`eval/golden_set.json` (2026-10-10), not anticipated in the original spec.
+`account_id` is the sole reliable account key. **Always `GROUP BY`/`JOIN
+ON` `account_id` alone** when aggregating "per account." If a display name
+is needed, use the `account_name` from that account's most recent invoice
+(same snapshot pattern as §4), never as part of the grouping key itself.
+
+**Why:** `account_name` varies for the same `account_id` in **976 of 3,815
+accounts (~25.6%)** — e.g. `ACC-7509` appears as "Stark Inc", "Soylent
+Ltd", and "Aperture Inc" across different invoices (aliases/renames/typos,
+same pattern of dirtiness as the other categorical columns, just not
+called out in `docs/BUSINESS_CONTEXT.md`). Grouping by
+`(account_id, account_name)` together — what the agent's "top 5 accounts"
+query originally did — silently splits one account's revenue across
+multiple rows instead of summing it, understating the true top accounts.
+
+**Bug caught and fixed:** the live agent's "top 5 accounts by revenue"
+answer (built before this was discovered) ranked `ACC-9946` ("Initech
+LLC") top at $1,205,642.75 using `GROUP BY account_id, account_name`.
+After adding the explicit rule to `tools/query_tool.py`'s docstring and
+re-running the same question, the agent correctly re-ranked `ACC-7509`
+("Stark Inc") top at $1,210,592.75, and — materially — **surfaced a new
+CSAT flag that the bug had hidden**: `ACC-1196` ("Pied Piper Partners"),
+#4 by revenue, has `min_csat = 2` and should have been flagged all along.
+Confirmed against the independently-computed ground truth in
+`eval/golden_set.json` Q5.
+
+**Affects:** any account-grouped query — most visibly "top 5 accounts by
+revenue."

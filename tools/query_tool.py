@@ -74,6 +74,14 @@ def query_invoices(sql: str) -> dict:
       are over-weighted.
     - churned_clean and csat_score are booleans/scores per invoice row, not
       guaranteed identical across an account's invoices.
+    - account_id is the only reliable account key. account_name is DIRTY
+      and varies for the same account_id in ~26% of accounts (aliases,
+      typos, renames) — grouping or joining by (account_id, account_name)
+      together silently splits one account's totals into multiple rows.
+      Always GROUP BY / JOIN ON account_id alone. If a display name is
+      needed, pick one representative name (e.g. the account_name from
+      that account's most recent invoice_date_parsed row), never
+      account_name itself as part of the grouping key.
     - When flagging an account by CSAT (e.g. "flag accounts with CSAT <= 2"),
       flag it if ANY of its invoices has csat_score <= 2
       (i.e. MIN(csat_score) <= 2 across all of that account's rows) — do

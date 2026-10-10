@@ -1,0 +1,110 @@
+[
+  {
+    "id": "Q1",
+    "category": "revenue",
+    "question": "What was our total recognized revenue in USD for paid invoices in 2024?",
+    "ground_truth_sql": "SELECT SUM(recognized_revenue_usd) FROM invoices_clean WHERE status_clean='paid' AND EXTRACT(year FROM invoice_date_parsed)=2024",
+    "checks": [
+      {"type": "scalar", "value": 32686371.0497, "tolerance_pct": 1.0, "description": "total recognized revenue, USD, 2024"}
+    ],
+    "notes": "Invoice-grain only; no account collapsing needed."
+  },
+  {
+    "id": "Q2",
+    "category": "mrr",
+    "question": "Which region has the highest average MRR per account?",
+    "ground_truth_sql": "WITH snap AS (SELECT account_id, region, mrr_usd, ROW_NUMBER() OVER (PARTITION BY account_id ORDER BY invoice_date_parsed DESC) rn FROM invoices_clean) SELECT region, AVG(mrr_usd) FROM snap WHERE rn=1 AND region IS NOT NULL GROUP BY region ORDER BY AVG(mrr_usd) DESC",
+    "checks": [
+      {"type": "keyword", "value": "APAC", "description": "winning region"},
+      {"type": "scalar", "value": 5993.137098501071, "tolerance_pct": 2.0, "description": "APAC avg MRR per account"}
+    ],
+    "notes": "ACCOUNT-GRAIN RISK (assumptions/ASSUMPTIONS.md #4): depends on the 'most recent invoice per account' snapshot rule, which is an assumed default, not a confirmed business rule. A fail here may mean the snapshot rule changed, not necessarily a regression."
+  },
+  {
+    "id": "Q3",
+    "category": "refunds",
+    "question": "How much have we given back in refunds?",
+    "ground_truth_sql": "SELECT SUM(amount_usd) FROM invoices_clean WHERE status_clean='refunded'",
+    "checks": [
+      {"type": "scalar", "value": 8923203.7737, "tolerance_pct": 1.0, "description": "total refunds, USD, positive magnitude"}
+    ],
+    "notes": "amount_usd is negative for refunds; the agent should report the positive magnitude in prose, but the underlying tool-call value may be negative or positive depending on how it writes the SQL (ABS() or not) -- the scalar check matches on magnitude via tolerance against the absolute ground truth value, so either SUM(amount_usd) or SUM(ABS(amount_usd)) passes."
+  },
+  {
+    "id": "Q4",
+    "category": "churn",
+    "question": "What's the churn rate among Enterprise accounts vs Starter?",
+    "ground_truth_sql": "WITH snap AS (SELECT account_id, plan_clean, churned_clean, ROW_NUMBER() OVER (PARTITION BY account_id ORDER BY invoice_date_parsed DESC) rn FROM invoices_clean) SELECT plan_clean, AVG(CASE WHEN churned_clean THEN 1.0 ELSE 0.0 END) FROM snap WHERE rn=1 AND plan_clean IN ('Enterprise','Starter') GROUP BY plan_clean",
+    "checks": [
+      {"type": "scalar", "value": 21.923076923076923, "tolerance_pct": 5.0, "description": "Enterprise churn rate, percent"},
+      {"type": "scalar", "value": 18.829787234042552, "tolerance_pct": 5.0, "description": "Starter churn rate, percent"}
+    ],
+    "notes": "ACCOUNT-GRAIN RISK (assumptions/ASSUMPTIONS.md #4), same caveat as Q2. Tolerance loosened to 5% given this. Ground truth expressed as a percent (0-100); if the agent reports a 0-1 fraction instead, convert before comparing -- the harness checks both representations."
+  },
+  {
+    "id": "Q5",
+    "category": "accounts",
+    "question": "List the top 5 accounts by revenue, and flag any with CSAT <= 2.",
+    "ground_truth_sql": "SELECT account_id, SUM(recognized_revenue_usd) rev, MIN(csat_score) min_csat FROM invoices_clean GROUP BY account_id ORDER BY rev DESC LIMIT 5",
+    "checks": [
+      {"type": "scalar", "value": 1210592.75, "tolerance_pct": 0.5, "description": "#1 account (ACC-7509, Stark Inc) total revenue"},
+      {"type": "keyword", "value": "ACC-7509", "description": "#1 account by revenue, by id (names vary for this account -- see assumptions #8)"},
+      {"type": "keyword", "value": "ACC-1196", "description": "the account that should be CSAT-flagged (min_csat=2), #4 by revenue"}
+    ],
+    "notes": "Exercises two fixed bugs: GROUP BY account_id ALONE, never with account_name (assumptions #8 -- account_name varies for ~26% of account_ids and splits totals if included in the grouping key), and MIN(csat_score) across ALL of an account's invoices for the CSAT flag, not just its latest (assumptions #5)."
+  },
+  {
+    "id": "Q6",
+    "category": "exposure",
+    "question": "How many invoices are stuck in pending/failed and what's the exposed $?",
+    "ground_truth_sql": "SELECT status_clean, COUNT(*), SUM(amount_usd) FROM invoices_clean WHERE status_clean IN ('pending','failed') GROUP BY status_clean",
+    "checks": [
+      {"type": "scalar", "value": 498, "tolerance_pct": 1.0, "description": "pending invoice count"},
+      {"type": "scalar", "value": 396, "tolerance_pct": 1.0, "description": "failed invoice count"},
+      {"type": "scalar", "value": 15825603.5329, "tolerance_pct": 1.0, "description": "pending exposed $"},
+      {"type": "scalar", "value": 13157652.2793, "tolerance_pct": 1.0, "description": "failed exposed $"}
+    ],
+    "notes": "Invoice-grain only. Checks the per-status breakdown (pending $, failed $) rather than a combined total -- the agent naturally groups by status_clean and returns two rows, so a check for the pre-summed $28.98M total would only ever match if the agent did that arithmetic itself inside the SQL, which isn't required to answer the question correctly."
+  },
+  {
+    "id": "Q7",
+    "category": "churn",
+    "question": "How many accounts have churned overall?",
+    "ground_truth_sql": "WITH snap AS (SELECT account_id, churned_clean, ROW_NUMBER() OVER (PARTITION BY account_id ORDER BY invoice_date_parsed DESC) rn FROM invoices_clean) SELECT SUM(CASE WHEN churned_clean THEN 1 ELSE 0 END) FROM snap WHERE rn=1",
+    "checks": [
+      {"type": "scalar", "value": 753, "tolerance_pct": 2.0, "description": "total churned accounts (account-grain snapshot)"}
+    ],
+    "notes": "ACCOUNT-GRAIN RISK (assumptions/ASSUMPTIONS.md #4), same caveat as Q2/Q4 but simpler (no plan split) -- a cleaner signal if the snapshot rule itself changes. New question, not from docs/BUSINESS_CONTEXT.md."
+  },
+  {
+    "id": "Q8",
+    "category": "discounts",
+    "question": "What's the average discount percentage given on Enterprise invoices?",
+    "ground_truth_sql": "SELECT AVG(discount_pct) FROM invoices_clean WHERE plan_clean='Enterprise'",
+    "checks": [
+      {"type": "scalar", "value": 4.562624254473161, "tolerance_pct": 2.0, "description": "average discount %, Enterprise invoices"}
+    ],
+    "notes": "Invoice-grain, no account collapsing -- a 'simple' control question. New question, not from docs/BUSINESS_CONTEXT.md."
+  },
+  {
+    "id": "Q9",
+    "category": "payment",
+    "question": "Which payment method is most commonly used for paid invoices?",
+    "ground_truth_sql": "SELECT payment_method_clean, COUNT(*) FROM invoices_clean WHERE status_clean='paid' GROUP BY payment_method_clean ORDER BY COUNT(*) DESC",
+    "checks": [
+      {"type": "keyword", "value": "ach", "description": "most common payment method on paid invoices"},
+      {"type": "scalar", "value": 892, "tolerance_pct": 2.0, "description": "count of paid invoices using ach"}
+    ],
+    "notes": "Exercises the keyword check type and NULLs in payment_method_clean (~8.5% of paid invoices have no payment method recorded). New question, not from docs/BUSINESS_CONTEXT.md."
+  },
+  {
+    "id": "Q10",
+    "category": "data_quality",
+    "question": "How many invoices have a missing region?",
+    "ground_truth_sql": "SELECT COUNT(*) FROM invoices_clean WHERE region IS NULL",
+    "checks": [
+      {"type": "scalar", "value": 1245, "tolerance_pct": 0.5, "description": "invoices with NULL region"}
+    ],
+    "notes": "Data-quality-aware question, exercises IS NULL handling. New question, not from docs/BUSINESS_CONTEXT.md."
+  }
+]
